@@ -37,7 +37,7 @@ streamlit_app/
 │   ├── design_mockup.jpeg           # UI/UX design reference
 │   └── prediksi mood manual.jpeg    # Mood prediction mockup
 │
-├── .env                             # Environment variables (API keys)
+├── .env.example                     # Environment variables template
 ├── requirements.txt
 ├── README.md
 └── LLM_MODULE_STRUCTURE.md          # LLM architecture guide
@@ -52,25 +52,36 @@ streamlit_app/
 ### Installation
 
 ```bash
-# Clone or download the project
-cd streamlit_app
+# 1. Clone repository
+git clone https://github.com/rendyardhaa/Music-Film-Recommendation.git
+cd Music-Film-Recommendation
 
-# Create virtual environment (recommended)
+# 2. Create virtual environment (recommended)
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# 3. Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+
+# 4. Install dependencies
 pip install -r requirements.txt
 ```
 
 ### Configuration
 
-1. Create `.env` file in `streamlit_app/` directory:
-```env
-GOOGLE_API_KEY=your_gemini_api_key_here
-```
+1. **Copy `.env.example` to `.env`**:
+   ```bash
+   cp .env.example .env
+   ```
 
-2. Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. **Edit `.env` file** and add your Google API Key:
+   ```env
+   GOOGLE_API_KEY=your_gemini_api_key_here
+   ```
+
+3. **Get your API key** from [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 ### Run Application
 
@@ -80,6 +91,11 @@ streamlit run main.py
 ```
 
 The app will open at `http://localhost:8501`
+
+**Note:**
+- Chatbot features require a valid Google API key
+- Music and Film recommendation features work without API key
+- Do NOT commit your `.env` file to Git (already in `.gitignore`)
 
 ## ✨ Features
 
@@ -209,13 +225,24 @@ The app will open at `http://localhost:8501`
 
 ## 🔐 Environment Variables
 
-Create a `.env` file in the `streamlit_app/` directory:
+The project uses environment variables for API keys. Follow these steps:
 
-```env
-GOOGLE_API_KEY=your_gemini_api_key_here
-```
+1. **Copy the template**:
+   ```bash
+   cp .env.example .env
+   ```
 
-**Note:** Chatbot features require a valid Google API key. Other features work without it.
+2. **Edit `.env`** and add your API key:
+   ```env
+   GOOGLE_API_KEY=your_gemini_api_key_here
+   ```
+
+3. **Get API key** from [Google AI Studio](https://aistudio.google.com/app/apikey)
+
+**Security Notes:**
+- ✅ `.env.example` is committed to Git (template only)
+- ❌ `.env` is in `.gitignore` (never commit this!)
+- 🔒 Keep your API keys private
 
 ## 🚧 Development
 
