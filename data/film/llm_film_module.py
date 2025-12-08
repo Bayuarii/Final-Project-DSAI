@@ -129,7 +129,7 @@ CATATAN:
         try:
             # Initialize Gemini 2.0 Flash
             self.llm = ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash-exp",
+                model="gemini-2.0-flash",
                 temperature=0.2,
                 api_key=self.api_key
             )

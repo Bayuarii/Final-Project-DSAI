@@ -103,7 +103,7 @@ tanpa improvisasi, tanpa menjawab dari luar dataset.
         try:
             # Initialize Gemini 2.0 Flash
             self.llm = ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash-exp",
+                model="gemini-2.0-flash",
                 temperature=0.3,
                 api_key=self.api_key
             )
