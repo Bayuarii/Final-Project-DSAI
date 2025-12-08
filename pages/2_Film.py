@@ -489,24 +489,40 @@ with tab2:
 
             # Handle send message
             if send_button and user_message.strip():
-                # Add user message to history
-                st.session_state.film_chat_history.append({
-                    'role': 'user',
-                    'content': user_message
-                })
+                # Prevent duplicate processing on rerun
+                if 'film_processing_msg' not in st.session_state:
+                    st.session_state.film_processing_msg = True
 
-                # Get bot response with spinner
-                with st.spinner("🎬 Thinking..."):
-                    bot_response = film_chatbot.chat(user_message)
+                    # Add user message to history
+                    st.session_state.film_chat_history.append({
+                        'role': 'user',
+                        'content': user_message
+                    })
 
-                # Add bot response to history
-                st.session_state.film_chat_history.append({
-                    'role': 'bot',
-                    'content': bot_response
-                })
+                    # Get bot response with error handling
+                    try:
+                        with st.spinner("🎬 Thinking..."):
+                            bot_response = film_chatbot.chat(user_message)
 
-                # Rerun to show new messages
-                st.rerun()
+                        # Add bot response to history
+                        st.session_state.film_chat_history.append({
+                            'role': 'bot',
+                            'content': bot_response
+                        })
+                    except Exception as e:
+                        error_msg = str(e)
+                        if "429" in error_msg or "quota" in error_msg.lower():
+                            st.error("⚠️ **API Quota Exceeded!** Try again in a few minutes.")
+                        else:
+                            st.error(f"⚠️ **Error:** {error_msg}")
+
+                        st.session_state.film_chat_history.append({
+                            'role': 'bot',
+                            'content': f"Sorry, error: {error_msg}"
+                        })
+
+                    del st.session_state.film_processing_msg
+                    # Removed st.rerun() - Streamlit auto-updates on next interaction
 
         with col_info:
             # Tips card

@@ -614,24 +614,45 @@ with tab3:
 
             # Handle send message
             if send_button and user_message.strip():
-                # Add user message to history
-                st.session_state.chat_history.append({
-                    'role': 'user',
-                    'content': user_message
-                })
+                # Prevent duplicate processing on rerun
+                if 'processing_msg' not in st.session_state:
+                    st.session_state.processing_msg = True
 
-                # Get bot response with spinner
-                with st.spinner("🎵 Thinking..."):
-                    bot_response = chatbot.chat(user_message)
+                    # Add user message to history
+                    st.session_state.chat_history.append({
+                        'role': 'user',
+                        'content': user_message
+                    })
 
-                # Add bot response to history
-                st.session_state.chat_history.append({
-                    'role': 'bot',
-                    'content': bot_response
-                })
+                    # Get bot response with error handling
+                    try:
+                        with st.spinner("🎵 Thinking..."):
+                            # Generate unique thread_id per session
+                            if 'thread_id' not in st.session_state:
+                                import uuid
+                                st.session_state.thread_id = str(uuid.uuid4())
 
-                # Rerun to show new messages
-                st.rerun()
+                            bot_response = chatbot.chat(user_message, thread_id=st.session_state.thread_id)
+
+                        # Add bot response to history
+                        st.session_state.chat_history.append({
+                            'role': 'bot',
+                            'content': bot_response
+                        })
+                    except Exception as e:
+                        error_msg = str(e)
+                        if "429" in error_msg or "quota" in error_msg.lower():
+                            st.error("⚠️ **API Quota Exceeded!** Try again in a few minutes.")
+                        else:
+                            st.error(f"⚠️ **Error:** {error_msg}")
+
+                        st.session_state.chat_history.append({
+                            'role': 'bot',
+                            'content': f"Sorry, error: {error_msg}"
+                        })
+
+                    del st.session_state.processing_msg
+                    # Removed st.rerun() - Streamlit auto-updates on next interaction
 
         with col_info:
             # Tips card
