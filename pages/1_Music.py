@@ -133,7 +133,7 @@ col_back, col_title = st.columns([1.5, 10.5])
 with col_back:
     st.write("")
     st.write("")  # Double spacing
-    if st.button("← Back", key="back_home"):
+    if st.button("← Back", key="music_back_home"):
         st.switch_page("main.py")
 with col_title:
     st.markdown("# Music Recommendations")
@@ -173,17 +173,32 @@ with col3:
 with col4:
     st.write("")
     st.write("")  # Double spacing to align button
-    if st.button("Search", use_container_width=True):
+    if st.button("Search", use_container_width=True, key="music_search"):
         st.session_state.show_recommendations = True
 
 st.write("")
 st.write("")
 
-# Main content
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎵 Recommendations", "🎯 Predict Mood", "💬 Chat Assistant", "📊 Analytics", "ℹ️ About"])
+# Main content - Tab navigation using radio buttons (persists state)
+if 'music_selected_tab' not in st.session_state:
+    st.session_state.music_selected_tab = "💬 Chat Assistant"
 
-# Tab 1: Recommendations
-with tab1:
+selected_tab = st.radio(
+    "Navigation",
+    ["🎵 Recommendations", "🎯 Predict Mood", "💬 Chat Assistant", "📊 Analytics", "ℹ️ About"],
+    horizontal=True,
+    label_visibility="collapsed",
+    key="music_tab_selector",
+    index=["🎵 Recommendations", "🎯 Predict Mood", "💬 Chat Assistant", "📊 Analytics", "ℹ️ About"].index(st.session_state.music_selected_tab)
+)
+st.session_state.music_selected_tab = selected_tab
+
+st.markdown("---")  # Separator line
+
+# Show content based on selection
+if selected_tab == "🎵 Recommendations":
+    st.markdown("## 🎵 Music Recommendations")
+    st.write("")
     if st.session_state.get('show_recommendations', False):
         st.markdown(f"## 🎯 Recommended Songs for **{mood}** Mood")
 
@@ -244,8 +259,7 @@ with tab1:
         with col3:
             st.metric("Calm Songs", f"{mood_dist.get('Calm', 0):,}")
 
-# Tab 2: Predict Mood
-with tab2:
+elif selected_tab == "🎯 Predict Mood":
     st.markdown("## 🎯 Prediksi Mood Manual")
     st.info("Ubah slider di bawah untuk melihat bagaimana model memprediksi mood.")
 
@@ -323,7 +337,7 @@ with tab2:
     # Predict button (centered, wider like Search Films)
     col1, col2, col3 = st.columns([3, 6, 3])
     with col2:
-        predict_button = st.button("🎯 Prediksi Mood", use_container_width=True, type="primary")
+        predict_button = st.button("🎯 Prediksi Mood", use_container_width=True, type="primary", key="music_predict")
 
     st.write("")
 
@@ -457,8 +471,7 @@ with tab2:
         - **Tense**: Valence rendah + Energy tinggi
         """)
 
-# Tab 3: Chat Assistant
-with tab3:
+elif selected_tab == "💬 Chat Assistant":
     st.markdown("## 💬 Music Chat Assistant")
 
     # Check if API key is available
@@ -562,24 +575,27 @@ with tab3:
 
             # Input section at TOP
             st.markdown("### ✍️ Type your message")
-            col_input, col_send, col_clear = st.columns([6, 1, 1])
 
-            with col_input:
-                user_message = st.text_input(
-                    "Type your message...",
-                    key="chat_input",
-                    label_visibility="collapsed",
-                    placeholder="e.g., Saya sedang sedih, rekomendasikan lagu dong"
-                )
+            # Chat form - prevents intermediate reruns
+            with st.form("chat_form", clear_on_submit=True):
+                col_input, col_send = st.columns([7, 1])
 
-            with col_send:
-                send_button = st.button("📤", use_container_width=True, help="Send message")
+                with col_input:
+                    user_message = st.text_input(
+                        "Type your message...",
+                        key="chat_input",
+                        label_visibility="collapsed",
+                        placeholder="e.g., Saya sedang sedih, rekomendasikan lagu dong"
+                    )
 
-            with col_clear:
-                if st.button("🗑️", use_container_width=True, help="Clear chat"):
-                    st.session_state.chat_history = []
-                    chatbot.clear_history()
-                    st.rerun()
+                with col_send:
+                    send_button = st.form_submit_button("📤", use_container_width=True, help="Send message")
+
+            # Clear button OUTSIDE form
+            if st.button("🗑️ Clear Chat", use_container_width=True, help="Clear chat history", key="music_clear_chat"):
+                st.session_state.chat_history = []
+                chatbot.clear_history()
+                # No st.rerun() needed - state change triggers auto-update
 
             st.write("")
 
@@ -652,7 +668,7 @@ with tab3:
                         })
 
                     del st.session_state.processing_msg
-                    # Removed st.rerun() - Streamlit auto-updates on next interaction
+                    st.rerun()  # Force UI update to display new messages
 
         with col_info:
             # Tips card
@@ -687,12 +703,11 @@ with tab3:
             with st.container(border=True):
                 st.markdown("### 📊 Stats")
                 st.metric("Messages", len(st.session_state.chat_history))
-                st.metric("Model", "Gemini 2.0")
+                st.metric("Model", "Gemini 2.5")
                 st.caption("Powered by Google AI")
 
-# Tab 4: Analytics
-with tab4:
-    st.markdown("## 🎯 Prediksi Mood Manual")
+elif selected_tab == "📊 Analytics":
+    st.markdown("## 📊 Music Analytics")
     st.write("")
 
     # Quick Stats Cards at the top
@@ -780,8 +795,7 @@ with tab4:
             height=300
         )
 
-# Tab 5: About
-with tab5:
+elif selected_tab == "ℹ️ About":
     st.markdown("## ℹ️ About Music Recommendation System")
 
     st.markdown("""
@@ -829,7 +843,7 @@ with tab5:
     - **Requirements**: Spotify account (free or premium) to play songs
 
     ### 🤖 AI Chat Assistant
-    - **Model**: Google Gemini 2.0 Flash
+    - **Model**: Google Gemini 2.5 Flash
     - **Features**: Mood detection, smart recommendations from dataset
     - **Language**: Bilingual support (Indonesian/English)
     - **Strict Mode**: Only recommends songs from the 114K+ dataset

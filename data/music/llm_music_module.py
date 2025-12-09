@@ -19,7 +19,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 class MusicLLMChatbot:
     """
-    Music recommendation chatbot using Gemini 2.0 Flash
+    Music recommendation chatbot using Gemini 2.5 Flash
     """
 
     def __init__(self, music_df, model=None, label_encoder=None, api_key=None):
@@ -52,14 +52,20 @@ melalui tools yang disediakan. Kamu TIDAK BOLEH menjawab dari pengetahuanmu send
 1. Jika user mengekspresikan perasaan atau mood:
    - Tentukan mood secara otomatis (sad, happy, calm, tense).
    - LANGSUNG panggil tool: recommend_music(mood).
-   - Setelah tool selesai → beri 1 kalimat empatik pendek.
-   - Tidak boleh menjawab selain hasil tool.
+   - Setelah tool selesai → TAMPILKAN LENGKAP hasil rekomendasi dengan format:
+     * Judul lagu
+     * Artis
+     * Genre
+     * Popularity
+   - Lalu tambahkan 1 kalimat empatik pendek di akhir.
+   - WAJIB menampilkan semua lagu yang direkomendasi tool.
 
 2. Kamu DILARANG:
    - mengarang lagu sendiri
    - menyebut lagu yang tidak ada di dataset
    - menjawab pertanyaan umum (cuaca, presiden, hewan, sejarah, teknologi)
    - menjawab tanpa tool jika mengenai rekomendasi musik
+   - melewatkan hasil rekomendasi dari tool
 
 3. Jika user meminta:
    - prediksi mood dari fitur audio → gunakan predict_mood
@@ -79,12 +85,29 @@ calm → capek, ingin tenang, butuh ketenangan, relax
 tense → stres, cemas, panik, tertekan, pusing kuliah
 
 =================================================
+🎧 FORMAT OUTPUT WAJIB
+=================================================
+Setelah tool recommend_music selesai, tampilkan seperti ini:
+
+**Rekomendasi Lagu untuk Mood [mood]:**
+
+1. **[Judul Lagu]** - [Artis]
+   Genre: [genre] | Popularity: [angka]
+
+2. **[Judul Lagu]** - [Artis]
+   Genre: [genre] | Popularity: [angka]
+
+... (lanjutkan semua 5 lagu)
+
+[1 kalimat empatik seperti: "Semoga lagu-lagu ini bisa nemenin kamu ya ✨"]
+
+=================================================
 🎧 GAYA BAHASA
 =================================================
 - Jawab dengan bahasa yang sama seperti user.
 - Singkat, hangat, empatik, tidak lebay.
-- Setelah tool: beri satu kalimat manusiawi seperti:
-  "Semoga lagu-lagu ini bisa nemenin kamu ya ✨"
+- WAJIB tampilkan semua hasil dari tool.
+- Setelah list lagu: beri satu kalimat manusiawi.
 
 =================================================
 🎧 MISI UTAMA
@@ -92,6 +115,7 @@ tense → stres, cemas, panik, tertekan, pusing kuliah
 Memberi rekomendasi musik dari dataset
 secepat, seakurat, dan sesingkat mungkin,
 tanpa improvisasi, tanpa menjawab dari luar dataset.
+SELALU tampilkan hasil lengkap dari tool.
 """
 
         # Initialize if API key available
@@ -101,11 +125,13 @@ tanpa improvisasi, tanpa menjawab dari luar dataset.
     def _initialize_llm(self):
         """Initialize LLM and agent"""
         try:
-            # Initialize Gemini 2.0 Flash
+            # Initialize Gemini 2.5 Flash (free tier compatible)
             self.llm = ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash",
+                model="gemini-2.5-flash",
                 temperature=0.3,
-                api_key=self.api_key
+                api_key=self.api_key,
+                thinking_budget=0,      # Disable thinking to prevent internal reasoning exposure
+                include_thoughts=False  # Ensure thoughts are not included in response
             )
 
             # Create tools

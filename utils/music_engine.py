@@ -44,9 +44,9 @@ class MusicRecommendationEngine:
                 _self.model = joblib.load(model_path)
                 _self.label_encoder = joblib.load(encoder_path)
 
-                print("✅ Trained models loaded successfully!")
+                print("Trained models loaded successfully!")
             except Exception as e:
-                print(f"⚠️ Models not loaded, using rule-based classification: {e}")
+                print(f"Models not loaded, using rule-based classification: {e}")
                 _self.model = None
                 _self.label_encoder = None
 
@@ -56,10 +56,10 @@ class MusicRecommendationEngine:
             # Get unique genres
             _self.genres = sorted(_self.df['track_genre'].unique().tolist())
 
-            print(f"✅ Dataset loaded: {len(_self.df)} songs, {len(_self.genres)} genres")
+            print(f"Dataset loaded: {len(_self.df)} songs, {len(_self.genres)} genres")
 
         except Exception as e:
-            print(f"❌ Error loading data: {e}")
+            print(f"Error loading data: {e}")
             raise
 
     def _classify_mood_rule_based(self, row):
@@ -89,14 +89,14 @@ class MusicRecommendationEngine:
                 X = self.df[features]
                 mood_encoded = self.model.predict(X)
                 self.df['mood'] = self.label_encoder.inverse_transform(mood_encoded)
-                print("✅ Using model-based mood classification")
+                print("Using model-based mood classification")
             except Exception as e:
-                print(f"⚠️ Model prediction failed, falling back to rule-based: {e}")
+                print(f"Model prediction failed, falling back to rule-based: {e}")
                 self.df['mood'] = self.df.apply(self._classify_mood_rule_based, axis=1)
         else:
             # Use rule-based classification
             self.df['mood'] = self.df.apply(self._classify_mood_rule_based, axis=1)
-            print("✅ Using rule-based mood classification")
+            print("Using rule-based mood classification")
 
     def get_recommendations_by_mood(self, mood, n=10):
         """

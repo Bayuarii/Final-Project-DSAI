@@ -20,7 +20,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 class FilmLLMChatbot:
     """
-    Film recommendation chatbot using Gemini 2.0 Flash
+    Film recommendation chatbot using Gemini 2.5 Flash
     """
 
     def __init__(self, film_df, tfidf_matrix=None, cosine_sim=None, api_key=None):
@@ -127,11 +127,13 @@ CATATAN:
     def _initialize_llm(self):
         """Initialize LLM and agent"""
         try:
-            # Initialize Gemini 2.0 Flash
+            # Initialize Gemini 2.5 Flash (free tier compatible)
             self.llm = ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash",
+                model="gemini-2.5-flash",
                 temperature=0.2,
-                api_key=self.api_key
+                api_key=self.api_key,
+                thinking_budget=0,      # Disable thinking to prevent internal reasoning exposure
+                include_thoughts=False  # Ensure thoughts are not included in response
             )
 
             # Create tools
@@ -275,6 +277,64 @@ CATATAN:
             return False
         return True
 
+    def _clean_response(self, response: str) -> str:
+        """
+        Remove internal reasoning/thinking from response
+
+        Args:
+            response: Raw response from agent
+
+        Returns:
+            Cleaned response without internal reasoning
+        """
+        # Check if response contains thinking patterns
+        thinking_indicators = [
+            "The user asked for",
+            "The user wants",
+            "Therefore, I need to",
+            "Since the prompt",
+            "I need to inform",
+            "I need to format",
+            "I need to",
+            "I should",
+            "I will list",
+            "I will",
+            "Let me",
+            "First,",
+            "tool returned",
+            "The `search_free`",
+            "The `search_movie`",
+            "The `recommend_movie`",
+        ]
+
+        # If no thinking patterns detected, return as-is
+        if not any(indicator in response for indicator in thinking_indicators):
+            return response
+
+        # Split response into sentences
+        sentences = response.split('. ')
+
+        # Filter out thinking sentences
+        cleaned_sentences = []
+        for sentence in sentences:
+            # Skip sentences that are clearly thinking/reasoning
+            is_thinking = any(indicator in sentence for indicator in thinking_indicators)
+            if not is_thinking:
+                cleaned_sentences.append(sentence)
+
+        # If we filtered everything, return a safe default
+        if not cleaned_sentences:
+            return "Maaf, saya tidak menemukan film yang sesuai dengan kriteria tersebut di dataset."
+
+        # Join cleaned sentences back
+        cleaned_response = '. '.join(cleaned_sentences)
+
+        # Ensure proper ending punctuation
+        if cleaned_response and not cleaned_response.endswith(('.', '!', '?')):
+            cleaned_response += '.'
+
+        return cleaned_response.strip()
+
     def chat(self, user_message: str, thread_id: str = "default") -> str:
         """
         Main chat function
@@ -317,6 +377,9 @@ CATATAN:
                 response = result.get("output") or result.get("output_text") or str(result)
             else:
                 response = str(result)
+
+            # Clean internal reasoning/thinking from response
+            response = self._clean_response(response)
 
             return response
 

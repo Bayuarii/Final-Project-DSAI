@@ -135,7 +135,7 @@ col_back, col_title = st.columns([1.5, 10.5])
 with col_back:
     st.write("")
     st.write("")  # Double spacing
-    if st.button("← Back", key="back_home"):
+    if st.button("← Back", key="film_back_home"):
         st.switch_page("main.py")
 with col_title:
     st.markdown("# Film Recommendations")
@@ -200,16 +200,31 @@ st.write("")
 # Search button (centered, wider)
 col1, col2, col3 = st.columns([3, 6, 3])
 with col2:
-    if st.button("🔍 Search Films", use_container_width=True, type="primary"):
+    if st.button("🔍 Search Films", use_container_width=True, type="primary", key="film_search"):
         st.session_state.show_films = True
 
 st.write("")
 
-# Main tabs
-tab1, tab2, tab3, tab4 = st.tabs(["🎬 Recommendations", "💬 Chat Assistant", "📊 Analytics", "ℹ️ About"])
+# Main tabs - Tab navigation using radio buttons (persists state)
+if 'film_selected_tab' not in st.session_state:
+    st.session_state.film_selected_tab = "💬 Chat Assistant"
 
-# TAB 1: RECOMMENDATIONS
-with tab1:
+selected_tab = st.radio(
+    "Navigation",
+    ["🎬 Recommendations", "💬 Chat Assistant", "📊 Analytics", "ℹ️ About"],
+    horizontal=True,
+    label_visibility="collapsed",
+    key="film_tab_selector",
+    index=["🎬 Recommendations", "💬 Chat Assistant", "📊 Analytics", "ℹ️ About"].index(st.session_state.film_selected_tab)
+)
+st.session_state.film_selected_tab = selected_tab
+
+st.markdown("---")  # Separator line
+
+# Show content based on selection
+if selected_tab == "🎬 Recommendations":
+    st.markdown("## 🎬 Film Recommendations")
+    st.write("")
     if st.session_state.get('show_films', False):
 
         st.markdown(f"## 🎯 Film Results")
@@ -339,8 +354,7 @@ with tab1:
         with col3:
             st.metric("Year Range", f"{info['year_range'][0]} - {info['year_range'][1]}")
 
-# TAB 2: CHAT ASSISTANT
-with tab2:
+elif selected_tab == "💬 Chat Assistant":
     st.markdown("## 💬 Film Chat Assistant")
 
     # Check if API key is available
@@ -437,24 +451,27 @@ with tab2:
 
             # Input section at TOP
             st.markdown("### ✍️ Type your message")
-            col_input, col_send, col_clear = st.columns([6, 1, 1])
 
-            with col_input:
-                user_message = st.text_input(
-                    "Type your message...",
-                    key="film_chat_input",
-                    label_visibility="collapsed",
-                    placeholder="e.g., Film thriller terbaik"
-                )
+            # Chat form - prevents intermediate reruns
+            with st.form("film_chat_form", clear_on_submit=True):
+                col_input, col_send = st.columns([7, 1])
 
-            with col_send:
-                send_button = st.button("📤", use_container_width=True, help="Send message", key="film_send")
+                with col_input:
+                    user_message = st.text_input(
+                        "Type your message...",
+                        key="film_chat_input",
+                        label_visibility="collapsed",
+                        placeholder="e.g., Rekomendasi film action tahun 2020"
+                    )
 
-            with col_clear:
-                if st.button("🗑️", use_container_width=True, help="Clear chat", key="film_clear"):
-                    st.session_state.film_chat_history = []
-                    film_chatbot.clear_history()
-                    st.rerun()
+                with col_send:
+                    send_button = st.form_submit_button("📤", use_container_width=True, help="Send message")
+
+            # Clear button OUTSIDE form
+            if st.button("🗑️ Clear Chat", use_container_width=True, help="Clear chat history", key="film_clear_chat"):
+                st.session_state.film_chat_history = []
+                film_chatbot.clear_history()
+                # No st.rerun() needed - state change triggers auto-update
 
             st.write("")
 
@@ -491,7 +508,8 @@ with tab2:
             if send_button and user_message.strip():
                 # Prevent duplicate processing on rerun
                 if 'film_processing_msg' not in st.session_state:
-                    st.session_state.film_processing_msg = True
+                    # Store the user message for processing
+                    st.session_state.film_processing_msg = user_message
 
                     # Add user message to history
                     st.session_state.film_chat_history.append({
@@ -499,30 +517,51 @@ with tab2:
                         'content': user_message
                     })
 
+                    # Add temporary "thinking" bubble to prevent transparency
+                    st.session_state.film_chat_history.append({
+                        'role': 'bot',
+                        'content': '🎬 Thinking...'
+                    })
+
+                    # Trigger rerun to show user message + thinking bubble
+                    st.rerun()
+
+            # Handle bot response processing (runs after rerun)
+            if 'film_processing_msg' in st.session_state and isinstance(st.session_state.film_processing_msg, str):
+                # Check if last message is the thinking placeholder
+                if (len(st.session_state.film_chat_history) > 0 and
+                    st.session_state.film_chat_history[-1]['role'] == 'bot' and
+                    st.session_state.film_chat_history[-1]['content'] == '🎬 Thinking...'):
+
+                    # Get the user message to process
+                    user_msg_to_process = st.session_state.film_processing_msg
+
                     # Get bot response with error handling
                     try:
                         with st.spinner("🎬 Thinking..."):
-                            bot_response = film_chatbot.chat(user_message)
+                            bot_response = film_chatbot.chat(user_msg_to_process)
 
-                        # Add bot response to history
-                        st.session_state.film_chat_history.append({
+                        # Replace thinking message with actual response
+                        st.session_state.film_chat_history[-1] = {
                             'role': 'bot',
                             'content': bot_response
-                        })
+                        }
                     except Exception as e:
                         error_msg = str(e)
                         if "429" in error_msg or "quota" in error_msg.lower():
-                            st.error("⚠️ **API Quota Exceeded!** Try again in a few minutes.")
+                            error_response = "⚠️ **API Quota Exceeded!** Try again in a few minutes."
                         else:
-                            st.error(f"⚠️ **Error:** {error_msg}")
+                            error_response = f"⚠️ **Error:** {error_msg}"
 
-                        st.session_state.film_chat_history.append({
+                        # Replace thinking message with error
+                        st.session_state.film_chat_history[-1] = {
                             'role': 'bot',
-                            'content': f"Sorry, error: {error_msg}"
-                        })
+                            'content': error_response
+                        }
 
+                    # Clear processing flag
                     del st.session_state.film_processing_msg
-                    # Removed st.rerun() - Streamlit auto-updates on next interaction
+                    st.rerun()  # Force UI update to display actual response
 
         with col_info:
             # Tips card
@@ -557,9 +596,10 @@ with tab2:
             with st.container(border=True):
                 st.markdown("### 📊 Stats")
                 st.metric("Messages", len(st.session_state.film_chat_history))
-                st.metric("Model", "Gemini 2.0")
+                st.metric("Model", "Gemini 2.5")
                 st.caption("Powered by Google AI")
-with tab3:
+
+elif selected_tab == "📊 Analytics":
     st.markdown("## 📊 Film Analytics Dashboard")
     st.write("")
 
@@ -632,8 +672,7 @@ with tab3:
                 st.caption(f"⭐ {film['rating']}/10 • {', '.join(film['genres_list'])}")
             st.write("")
 
-# TAB 4: ABOUT
-with tab4:
+elif selected_tab == "ℹ️ About":
     st.markdown("## ℹ️ About Film Recommendation System")
 
     st.markdown("""

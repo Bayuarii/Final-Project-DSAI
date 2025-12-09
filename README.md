@@ -107,7 +107,7 @@ The app will open at `http://localhost:8501`
   - Adjust audio features (danceability, energy, valence, etc.)
   - Real-time mood prediction
 - **AI Chat Assistant** 🤖
-  - Powered by Google Gemini 2.0 Flash
+  - Powered by Google Gemini 2.5 Flash
   - Natural language music queries
   - Strict dataset-only responses
 - **Spotify Integration**
@@ -129,7 +129,7 @@ The app will open at `http://localhost:8501`
   - Similar film recommendations using TF-IDF
   - Cosine similarity scoring
 - **AI Chat Assistant** 🤖
-  - Powered by Google Gemini 2.0 Flash
+  - Powered by Google Gemini 2.5 Flash
   - Natural language film queries
   - RAG-enhanced context retrieval
   - Search by actor, director, genre, year
@@ -156,7 +156,7 @@ The app will open at `http://localhost:8501`
 ## 🤖 AI Chatbot Features
 
 ### Music Chatbot
-- **Model**: Google Gemini 2.0 Flash
+- **Model**: Google Gemini 2.5 Flash
 - **Framework**: LangChain + LangGraph
 - **Tools**:
   - `predict_mood()`: ML-based mood prediction
@@ -168,7 +168,7 @@ The app will open at `http://localhost:8501`
   - Strict dataset-only responses
 
 ### Film Chatbot
-- **Model**: Google Gemini 2.0 Flash
+- **Model**: Google Gemini 2.5 Flash
 - **Framework**: LangChain Agent
 - **Tools**:
   - `search_movie()`: Search film by title
@@ -196,7 +196,7 @@ The app will open at `http://localhost:8501`
 ### AI & LLM
 - **LangChain** - LLM orchestration framework
 - **LangGraph** - Agent workflow (Music chatbot)
-- **Google Gemini AI** - gemini-2.0-flash-exp model
+- **Google Gemini AI** - gemini-2.5-flash model
 - **Python dotenv** - Environment management
 
 ## 🎨 Design

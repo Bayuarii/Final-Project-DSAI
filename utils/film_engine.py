@@ -50,10 +50,10 @@ class FilmRecommendationEngine:
             # Extract unique genres and years
             _self._extract_metadata()
 
-            print(f"✅ Film dataset loaded: {len(_self.df)} films")
+            print(f"Film dataset loaded: {len(_self.df)} films")
 
         except Exception as e:
-            print(f"❌ Error loading film data: {e}")
+            print(f"Error loading film data: {e}")
             raise
 
     def _clean_data(self):
@@ -116,10 +116,10 @@ class FilmRecommendationEngine:
             # Compute cosine similarity
             self.cosine_sim = cosine_similarity(self.tfidf_matrix, self.tfidf_matrix)
 
-            print("✅ Similarity matrix computed successfully")
+            print("Similarity matrix computed successfully")
 
         except Exception as e:
-            print(f"⚠️ Could not compute similarity: {e}")
+            print(f"Could not compute similarity: {e}")
             self.cosine_sim = None
 
     def _extract_metadata(self):
@@ -233,7 +233,7 @@ class FilmRecommendationEngine:
             DataFrame: Similar films
         """
         if self.cosine_sim is None:
-            print("⚠️ Similarity matrix not available")
+            print("Similarity matrix not available")
             return pd.DataFrame()
 
         try:
@@ -269,7 +269,7 @@ class FilmRecommendationEngine:
             return result
 
         except Exception as e:
-            print(f"❌ Error getting similar films: {e}")
+            print(f"Error getting similar films: {e}")
             return pd.DataFrame()
 
     def get_platform_recommendation(self, film_data):
