@@ -52,9 +52,9 @@ streamlit_app/
 ### Installation
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/rendyardhaa/Music-Film-Recommendation.git
-cd Music-Film-Recommendation
+# 1. Clone repository (branch monica)
+git clone -b monica https://github.com/Bayuarii/Final-Project-DSAI.git
+cd Final-Project-DSAI
 
 # 2. Create virtual environment (recommended)
 python -m venv venv
