@@ -11,7 +11,7 @@ import numpy as np
 from typing import Dict, Any, List
 from langchain.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.memory import MemorySaver
@@ -208,8 +208,10 @@ SELALU tampilkan hasil lengkap dari tool.
                     songs.append({
                         "title": row['track_name'],
                         "artist": row['artists'],
+                        "album": row.get('album_name', 'Unknown Album'),
                         "genre": row['track_genre'],
-                        "popularity": int(row['popularity'])
+                        "popularity": int(row['popularity']),
+                        "track_id": row['track_id']
                     })
 
                 return {"recommendations": songs}
@@ -281,7 +283,7 @@ SELALU tampilkan hasil lengkap dari tool.
         text_lower = text.lower()
         return any(keyword in text_lower for keyword in keywords)
 
-    def chat(self, user_message: str, thread_id: str = "default") -> str:
+    def chat(self, user_message: str, thread_id: str = "default") -> Dict[str, Any]:
         """
         Main chat function
 
@@ -290,14 +292,14 @@ SELALU tampilkan hasil lengkap dari tool.
             thread_id: Thread ID for conversation (default: "default")
 
         Returns:
-            Bot's response
+            Dictionary with 'text' and optionally 'songs' (full song data)
         """
         if not self.llm or not self.agent:
-            return "Error: Chatbot belum diinisialisasi. Pastikan GOOGLE_API_KEY sudah diset."
+            return {"text": "Error: Chatbot belum diinisialisasi. Pastikan GOOGLE_API_KEY sudah diset."}
 
         # Check if music-related
         if not self.is_music_related(user_message):
-            return "Maaf, saya hanya dapat membantu rekomendasi musik berdasarkan mood. Coba tanya tentang musik yuk! 🎵"
+            return {"text": "Maaf, saya hanya dapat membantu rekomendasi musik berdasarkan mood. Coba tanya tentang musik yuk! 🎵"}
 
         try:
             # Invoke agent
@@ -309,10 +311,40 @@ SELALU tampilkan hasil lengkap dari tool.
 
             # Get last message
             last_message = result["messages"][-1]
-            return last_message.content
+            response_text = last_message.content
+
+            # Extract full song data from tool results
+            songs = []
+            for message in result["messages"]:
+                if isinstance(message, ToolMessage):
+                    # Check if this is a recommend_music tool result
+                    try:
+                        # Parse the tool result
+                        tool_result = json.loads(message.content)
+                        if "recommendations" in tool_result:
+                            # Extract full song data from recommendations
+                            for song in tool_result["recommendations"]:
+                                songs.append({
+                                    "title": song.get("title", "Unknown"),
+                                    "artist": song.get("artist", "Unknown Artist"),
+                                    "album": song.get("album", "Unknown Album"),
+                                    "genre": song.get("genre", "Unknown"),
+                                    "popularity": song.get("popularity", 0),
+                                    "track_id": song.get("track_id", "")
+                                })
+                    except (json.JSONDecodeError, TypeError, KeyError):
+                        # If parsing fails, skip this message
+                        continue
+
+            # Return both text and full song data
+            response = {"text": response_text}
+            if songs:
+                response["songs"] = songs
+
+            return response
 
         except Exception as e:
-            return f"Maaf, terjadi error: {str(e)}"
+            return {"text": f"Maaf, terjadi error: {str(e)}"}
 
     def clear_history(self):
         """Clear chat history"""

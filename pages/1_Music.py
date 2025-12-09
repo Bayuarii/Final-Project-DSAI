@@ -626,6 +626,26 @@ elif selected_tab == "💬 Chat Assistant":
                                 </div>
                             </div>
                             ''', unsafe_allow_html=True)
+
+                            # Display full song cards if songs exist
+                            songs = message.get('songs', [])
+                            if songs:
+                                st.write("")  # Spacing
+                                for song in songs:
+                                    with st.container(border=True):
+                                        col_song, col_player = st.columns([6, 4])
+
+                                        with col_song:
+                                            st.markdown(f"#### {song['title']}")
+                                            st.caption(f"{song['artist']}")
+                                            st.caption(f"{song['album']} • {song['genre']} • ⭐ {song['popularity']}/100")
+
+                                        with col_player:
+                                            st.write("")
+                                            track_id = song['track_id']
+                                            spotify_embed = engine.create_spotify_embed(track_id, width=350, height=80)
+                                            st.markdown(spotify_embed, unsafe_allow_html=True)
+                                st.write("")  # Spacing
                     st.write("")  # Auto-scroll spacing
 
             # Handle send message
@@ -650,10 +670,20 @@ elif selected_tab == "💬 Chat Assistant":
 
                             bot_response = chatbot.chat(user_message, thread_id=st.session_state.thread_id)
 
+                        # Handle dictionary response (with text and optional songs)
+                        if isinstance(bot_response, dict):
+                            response_text = bot_response.get("text", "")
+                            songs = bot_response.get("songs", [])
+                        else:
+                            # Fallback for backward compatibility
+                            response_text = str(bot_response)
+                            songs = []
+
                         # Add bot response to history
                         st.session_state.chat_history.append({
                             'role': 'bot',
-                            'content': bot_response
+                            'content': response_text,
+                            'songs': songs
                         })
                     except Exception as e:
                         error_msg = str(e)
