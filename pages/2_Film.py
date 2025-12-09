@@ -6,6 +6,7 @@ Search and filter films with platform recommendations
 import streamlit as st
 import sys
 import os
+import pandas as pd
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -79,9 +80,13 @@ st.markdown("""
 
     .netflix { background: #E50914; color: white; }
     .disney { background: #113CCF; color: white; }
+    .disney+ { background: #113CCF; color: white; }
     .prime { background: #00A8E1; color: white; }
+    .primevideo { background: #00A8E1; color: white; }
     .hbo { background: #7D2EBE; color: white; }
+    .hbomax { background: #7D2EBE; color: white; }
     .apple { background: #000000; color: white; border: 1px solid white; }
+    .appletv+ { background: #000000; color: white; border: 1px solid white; }
     .viu { background: #FFB800; color: black; }
 
     /* Tabs */
@@ -373,6 +378,11 @@ elif selected_tab == "💬 Chat Assistant":
         if 'film_chat_history' not in st.session_state:
             st.session_state.film_chat_history = []
 
+        # Initialize thread ID for conversation memory
+        if 'film_thread_id' not in st.session_state:
+            import uuid
+            st.session_state.film_thread_id = str(uuid.uuid4())
+
         # Main layout: Chat + Sidebar info
         col_chat, col_info = st.columns([7, 3])
 
@@ -502,6 +512,44 @@ elif selected_tab == "💬 Chat Assistant":
                                 </div>
                             </div>
                             ''', unsafe_allow_html=True)
+
+                            # Display film cards if available (COMPACT VERSION)
+                            films = message.get('films', [])
+                            if films:
+                                for film in films:
+                                    with st.container(border=True):
+                                        # Title and Rating (inline, compact)
+                                        col1, col2 = st.columns([7, 3])
+                                        with col1:
+                                            st.markdown(f"**{film.get('title', 'Unknown')}**")
+                                        with col2:
+                                            rating = film.get('rating', 0)
+                                            st.markdown(f"⭐ **{rating}/10**")
+
+                                        # Genre, Year (compact, single line)
+                                        genres = film.get('genres_list', 'Unknown')
+                                        year = film.get('year', 'N/A')
+                                        st.caption(f"🎭 {genres} • 📅 {year}")
+
+                                        # Platform badges (compact, inline)
+                                        genres_for_platform = genres
+                                        if isinstance(genres_for_platform, str):
+                                            genres_for_platform = [g.strip() for g in genres_for_platform.split(',')]
+
+                                        film_series = pd.Series({
+                                            'genres_list': genres_for_platform,
+                                            'rating': rating
+                                        })
+
+                                        platforms = engine.get_platform_recommendation(film_series)
+
+                                        # Compact platform badges
+                                        platform_html = '🎬 '
+                                        for platform in platforms:
+                                            platform_class = platform.lower().replace(" ", "").replace("+", "")
+                                            platform_html += f'<span class="platform-badge {platform_class}">{platform}</span> '
+                                        st.markdown(platform_html, unsafe_allow_html=True)
+
                     st.write("")  # Auto-scroll spacing
 
             # Handle send message
@@ -539,12 +587,21 @@ elif selected_tab == "💬 Chat Assistant":
                     # Get bot response with error handling
                     try:
                         with st.spinner("🎬 Thinking..."):
-                            bot_response = film_chatbot.chat(user_msg_to_process)
+                            bot_response = film_chatbot.chat(user_msg_to_process, thread_id=st.session_state.film_thread_id)
+
+                        # Handle dictionary response
+                        if isinstance(bot_response, dict):
+                            response_text = bot_response.get("text", "")
+                            films = bot_response.get("films", [])
+                        else:
+                            response_text = str(bot_response)
+                            films = []
 
                         # Replace thinking message with actual response
                         st.session_state.film_chat_history[-1] = {
                             'role': 'bot',
-                            'content': bot_response
+                            'content': response_text,
+                            'films': films
                         }
                     except Exception as e:
                         error_msg = str(e)
@@ -556,7 +613,8 @@ elif selected_tab == "💬 Chat Assistant":
                         # Replace thinking message with error
                         st.session_state.film_chat_history[-1] = {
                             'role': 'bot',
-                            'content': error_response
+                            'content': error_response,
+                            'films': []
                         }
 
                     # Clear processing flag

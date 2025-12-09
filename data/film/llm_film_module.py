@@ -12,8 +12,10 @@ import pandas as pd
 from typing import Dict, Any, List
 from langchain.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langchain.agents import initialize_agent, AgentType
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
+from langgraph.graph import StateGraph, MessagesState, START, END
+from langgraph.prebuilt import ToolNode
+from langgraph.checkpoint.memory import MemorySaver
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -125,28 +127,22 @@ CATATAN:
         return vectorizer, tfidf_matrix, cosine_sim
 
     def _initialize_llm(self):
-        """Initialize LLM and agent"""
+        """Initialize Gemini LLM and LangGraph agent"""
         try:
-            # Initialize Gemini 2.5 Flash (free tier compatible)
+            # Initialize Gemini LLM
             self.llm = ChatGoogleGenerativeAI(
                 model="gemini-2.5-flash",
                 temperature=0.2,
                 api_key=self.api_key,
-                thinking_budget=0,      # Disable thinking to prevent internal reasoning exposure
-                include_thoughts=False  # Ensure thoughts are not included in response
+                thinking_budget=0,
+                include_thoughts=False
             )
 
             # Create tools
             tools = self._create_tools()
 
-            # Build agent
-            self.agent = initialize_agent(
-                tools=tools,
-                llm=self.llm,
-                agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
-                verbose=False,
-                handle_parsing_errors=True
-            )
+            # Build LangGraph agent
+            self.agent = self._build_agent(tools)
 
             return True
         except Exception as e:
@@ -271,6 +267,67 @@ CATATAN:
         except:
             return ""
 
+    def _build_agent(self, tools):
+        """
+        Build LangGraph agent workflow
+
+        Args:
+            tools: List of tools for the agent
+
+        Returns:
+            Compiled LangGraph agent
+        """
+
+        class AgentState(dict):
+            messages: list
+
+        tool_node = ToolNode(tools)
+
+        def call_llm(state: AgentState):
+            """Call LLM with system prompt and messages"""
+            messages = state["messages"]
+
+            # Add system prompt if first message
+            if len(messages) == 0 or not isinstance(messages[0], SystemMessage):
+                messages = [SystemMessage(content=self.system_prompt)] + messages
+
+            # Bind tools to LLM
+            llm_with_tools = self.llm.bind_tools(tools)
+            response = llm_with_tools.invoke(messages)
+
+            return {"messages": [response]}
+
+        def should_continue(state: AgentState):
+            """Check if we should continue or end"""
+            messages = state["messages"]
+            last_message = messages[-1]
+
+            # If LLM makes a tool call, continue to tools
+            if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+                return "tools"
+            # Otherwise end
+            return END
+
+        # Build graph
+        workflow = StateGraph(MessagesState)
+
+        # Add nodes
+        workflow.add_node("agent", call_llm)
+        workflow.add_node("tools", tool_node)
+
+        # Set entry point
+        workflow.add_edge(START, "agent")
+
+        # Add conditional edges
+        workflow.add_conditional_edges("agent", should_continue, ["tools", END])
+        workflow.add_edge("tools", "agent")
+
+        # Compile with memory
+        memory = MemorySaver()
+        app = workflow.compile(checkpointer=memory)
+
+        return app
+
     def is_film_related(self, text: str) -> bool:
         """Check if query is film-related"""
         if any(keyword in text.lower() for keyword in self.non_film_keywords):
@@ -335,7 +392,7 @@ CATATAN:
 
         return cleaned_response.strip()
 
-    def chat(self, user_message: str, thread_id: str = "default") -> str:
+    def chat(self, user_message: str, thread_id: str = "default") -> Dict[str, Any]:
         """
         Main chat function
 
@@ -344,47 +401,109 @@ CATATAN:
             thread_id: Thread ID for conversation (default: "default")
 
         Returns:
-            Bot's response
+            Dict with 'text' (response) and 'films' (list of film data)
         """
         if not self.llm or not self.agent:
-            return "Error: Chatbot belum diinisialisasi. Pastikan GOOGLE_API_KEY sudah diset."
+            return {
+                "text": "Error: Chatbot belum diinisialisasi. Pastikan GOOGLE_API_KEY sudah diset.",
+                "films": []
+            }
 
         # Check if film-related
         if not self.is_film_related(user_message):
-            return "Maaf, saya hanya dapat membantu rekomendasi film. Coba tanya tentang film yuk! 🎬"
+            return {
+                "text": "Maaf, saya hanya dapat membantu rekomendasi film. Coba tanya tentang film yuk! 🎬",
+                "films": []
+            }
 
         # Handle context continuation (boleh, lanjut, etc)
         if user_message.lower().strip() in ["boleh", "bolehh", "ya", "iya", "lanjut", "oke", "y"]:
             if self.last_query:
                 user_message = self.last_query
             else:
-                return "Silakan tanyakan tentang film yang ingin Anda cari! 🎬"
+                return {
+                    "text": "Silakan tanyakan tentang film yang ingin Anda cari! 🎬",
+                    "films": []
+                }
 
         self.last_query = user_message
 
         try:
-            # Get context
-            context = self._retrieve_context(user_message)
+            # Invoke agent with thread_id
+            config = {"configurable": {"thread_id": thread_id}}
+            result = self.agent.invoke(
+                {"messages": [HumanMessage(content=user_message)]},
+                config=config
+            )
 
-            # Build query
-            final_query = f"{self.system_prompt}\n\nKonteks:\n{context}\n\nUser: {user_message}\nJawab:"
-
-            # Invoke agent
-            result = self.agent.invoke(final_query)
-
-            # Extract response
-            if isinstance(result, dict):
-                response = result.get("output") or result.get("output_text") or str(result)
-            else:
-                response = str(result)
+            # Get last message
+            last_message = result["messages"][-1]
+            response = last_message.content
 
             # Clean internal reasoning/thinking from response
             response = self._clean_response(response)
 
-            return response
+            # Extract film data from tool results
+            films = []
+            for message in result["messages"]:
+                if isinstance(message, ToolMessage):
+                    try:
+                        tool_result = json.loads(message.content) if isinstance(message.content, str) else message.content
+
+                        # Handle search_movie tool result (single film)
+                        if "Detail film" in tool_result:
+                            films.append({
+                                "title": tool_result.get("Detail film", ""),
+                                "description": tool_result.get("Deskripsi", ""),
+                                "rating": tool_result.get("Rating", 0),
+                                "genres_list": tool_result.get("Genre", ""),
+                                "year": tool_result.get("Tahun Rilis", ""),
+                                "directors": tool_result.get("Sutradara", ""),
+                                "actors": tool_result.get("Aktor", ""),
+                                "runtime_minutes": tool_result.get("Durasi", "")
+                            })
+
+                        # Handle recommend_movie tool result (list of recommendations)
+                        elif "recommendations" in tool_result:
+                            for rec in tool_result["recommendations"]:
+                                films.append({
+                                    "title": rec.get("Judul", ""),
+                                    "description": "",  # Recommendations don't have description
+                                    "rating": rec.get("Rating", 0),
+                                    "genres_list": rec.get("Genre", ""),
+                                    "year": rec.get("Tahun", ""),
+                                    "directors": "",
+                                    "actors": "",
+                                    "runtime_minutes": rec.get("Durasi", "")
+                                })
+
+                        # Handle search_free tool result (list of films)
+                        elif isinstance(tool_result, list):
+                            for film in tool_result:
+                                if "error" not in film:
+                                    films.append({
+                                        "title": film.get("title", ""),
+                                        "description": film.get("description", ""),
+                                        "rating": film.get("rating", 0),
+                                        "genres_list": ", ".join(film.get("genres_list", [])) if isinstance(film.get("genres_list"), list) else film.get("genres_list", ""),
+                                        "year": film.get("release_year", ""),
+                                        "directors": film.get("directors", ""),
+                                        "actors": film.get("actors", ""),
+                                        "runtime_minutes": film.get("runtime_minutes", "")
+                                    })
+                    except (json.JSONDecodeError, TypeError, KeyError) as e:
+                        continue
+
+            return {
+                "text": response,
+                "films": films
+            }
 
         except Exception as e:
-            return f"Maaf, terjadi error: {str(e)}"
+            return {
+                "text": f"Maaf, terjadi error: {str(e)}",
+                "films": []
+            }
 
     def clear_history(self):
         """Clear chat history"""
