@@ -1,5 +1,5 @@
 """
-🎬🎵 AI Music & Film Recommendation System
+🎬🎵 MELORA - Music & Film Recommendation System
 Landing Page - User chooses between Music or Film recommendation
 """
 
@@ -7,7 +7,7 @@ import streamlit as st
 
 # Page configuration - COLLAPSED sidebar for clean look
 st.set_page_config(
-    page_title="AI Recommendation System",
+    page_title="MELORA - AI Recommendation System",
     page_icon="🎬",
     layout="centered",  # Centered for minimalist look
     initial_sidebar_state="collapsed"  # NO SIDEBAR on landing page!
@@ -39,13 +39,24 @@ st.markdown("""
         padding: 2rem 0 3rem 0;
     }
 
+    .hero-logo {
+        width: 250px;
+        height: 250px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin: 0 auto 1.5rem auto;
+        display: block;
+        box-shadow: 0 10px 40px rgba(99, 102, 241, 0.3);
+    }
+
     .hero-title {
-        font-size: 3rem;
-        font-weight: 700;
+        font-size: 3.5rem;
+        font-weight: 800;
         background: linear-gradient(135deg, #6366F1 0%, #EC4899 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 0.5rem;
+        letter-spacing: 0.1em;
     }
 
     .hero-subtitle {
@@ -120,11 +131,32 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Hero section
+# Hero section with logo
+from PIL import Image
+import os
+
+# Display logo as circle
+logo_path = os.path.join(os.path.dirname(__file__), 'assets', 'logo.jpeg')
+if os.path.exists(logo_path):
+    import base64
+
+    # Convert image to base64
+    with open(logo_path, "rb") as img_file:
+        img_base64 = base64.b64encode(img_file.read()).decode()
+
+    # Display as circular image with custom CSS
+    st.markdown(f"""
+    <div style="display: flex; justify-content: center; margin-bottom: 1.5rem;">
+        <img src="data:image/jpeg;base64,{img_base64}"
+             style="width: 300px; height: 300px; border-radius: 50%;
+                    object-fit: cover; box-shadow: 0 10px 40px rgba(99, 102, 241, 0.3);">
+    </div>
+    """, unsafe_allow_html=True)
+
+# Subtitle only (logo already has MELORA text)
 st.markdown("""
-<div class="hero-container">
-    <div class="hero-title">AI Recommendation System</div>
-    <div class="hero-subtitle">Discover your next favorite music or film</div>
+<div style="text-align: center;">
+    <div class="hero-subtitle" style="font-size: 1.5rem; margin-top: 1rem;">Music & Film Recommendation System</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -170,6 +202,6 @@ with col2:
 # Footer
 st.markdown("""
 <div class="footer">
-    Final Project Kelompok 4 • AI-Powered Recommendations
+    MELORA • Final Project Kelompok 4 • AI-Powered Recommendations
 </div>
 """, unsafe_allow_html=True)

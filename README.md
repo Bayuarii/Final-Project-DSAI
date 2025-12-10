@@ -1,6 +1,6 @@
-# 🎬🎵 AI Music & Film Recommendation System
+# 🎬🎵 MELORA - Music & Film Recommendation System
 
-Streamlit web application untuk rekomendasi musik dan film menggunakan AI/ML dan LLM chatbot.
+**MELORA** (Music & Film Recommendation) - Streamlit web application untuk rekomendasi musik dan film menggunakan AI/ML dan LLM chatbot.
 
 ## 📁 Project Structure
 
