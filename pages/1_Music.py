@@ -744,7 +744,7 @@ elif selected_tab == "📊 Analytics":
     mood_dist = engine.get_mood_distribution()
     total_songs = sum(mood_dist.values())
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         with st.container(border=True):
@@ -765,6 +765,11 @@ elif selected_tab == "📊 Analytics":
         with st.container(border=True):
             st.markdown("### 😌")
             st.metric("Calm", f"{mood_dist.get('Calm', 0):,}")
+
+    with col5:
+        with st.container(border=True):
+            st.markdown("### 😰")
+            st.metric("Tense", f"{mood_dist.get('Tense', 0):,}")
 
     st.write("")
     st.write("")
