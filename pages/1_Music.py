@@ -334,6 +334,31 @@ elif selected_tab == "🎯 Predict Mood":
 
     st.write("")
 
+    # Row 3: Loudness & Speechiness (the missing 2 sliders!)
+    col7, col8, col9 = st.columns(3)
+
+    with col7:
+        loudness = st.slider(
+            "Loudness (dB)",
+            min_value=-60.0,
+            max_value=0.0,
+            value=-8.26,
+            step=0.1,
+            help="Overall loudness in decibels (dB). Typical range: -60 (quiet) to 0 (loud)"
+        )
+
+    with col8:
+        speechiness = st.slider(
+            "Speechiness",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.085,
+            step=0.001,
+            help="Presence of spoken words. 0.0 = music, 1.0 = speech-only (podcast/audiobook)"
+        )
+
+    st.write("")
+
     # Predict button (centered, wider like Search Films)
     col1, col2, col3 = st.columns([3, 6, 3])
     with col2:
@@ -346,7 +371,7 @@ elif selected_tab == "🎯 Predict Mood":
         # Prepare features for prediction
         import numpy as np
 
-        # Features in correct order for model
+        # Features in correct order for model (ALL 8 from sliders!)
         features = np.array([[
             danceability,
             energy,
@@ -354,8 +379,8 @@ elif selected_tab == "🎯 Predict Mood":
             tempo,
             acousticness,
             instrumentalness,
-            0.5,  # loudness (default)
-            0.1   # speechiness (default)
+            loudness,      # Now from slider!
+            speechiness    # Now from slider!
         ]])
 
         # Predict mood
@@ -408,9 +433,9 @@ elif selected_tab == "🎯 Predict Mood":
         st.write("")
         st.write("")
 
-        # Feature values summary
-        st.markdown("### 📊 Audio Features Summary")
-        col1, col2, col3 = st.columns(3)
+        # Feature values summary (ALL 8 features!)
+        st.markdown("### 📊 Audio Features Summary (8 Parameters)")
+        col1, col2, col3, col4 = st.columns(4)
 
         with col1:
             with st.container(border=True):
@@ -420,12 +445,17 @@ elif selected_tab == "🎯 Predict Mood":
         with col2:
             with st.container(border=True):
                 st.metric("Valence", f"{valence:.2f}")
-                st.metric("Acousticness", f"{acousticness:.2f}")
+                st.metric("Tempo", f"{tempo} BPM")
 
         with col3:
             with st.container(border=True):
+                st.metric("Acousticness", f"{acousticness:.2f}")
                 st.metric("Instrumentalness", f"{instrumentalness:.2f}")
-                st.metric("Tempo", f"{tempo} BPM")
+
+        with col4:
+            with st.container(border=True):
+                st.metric("Loudness", f"{loudness:.2f} dB")
+                st.metric("Speechiness", f"{speechiness:.3f}")
 
         st.write("")
         st.write("")
